@@ -7,6 +7,20 @@ const socket = io('localhost:8000');
 
 const spotifyApi = new SpotifyWebApi();
 
+const slayerAlbums = ["2kwj7NbZ9YMGYYvCNrknoj",
+    "44MTd2OAtSYY63DCcQ7P8n",
+    "41dQQuob8FPy5zWGg4vLXU",
+    "3MuaoZgcAFuanhg04e75LK",
+    "743y70pTrfEfHZHtIyyQ6c",
+    "2YKQekIfxPZK0O2XKw6wr6",
+    "31pVN7QZwfWFo388SICgnd",
+    "49QJ9TAWNqZGbFUvadXPgT",
+    "2UqJjz5eMYRzbbKToD3Peh",
+    "5v5BfkxWDAKTkzrXl3H0mU",
+    "5g0QIKPHDAIVwiq03UeJpN",
+    "3D6BriGykla1Qi2YzeoE7X"];
+const slayerAlbumSongCounts = [12, 11, 10, 13, 11, 14, 10, 10, 10, 12, 7, 10];
+
 var flag = false;
 
 class App extends Component {
@@ -39,7 +53,7 @@ class App extends Component {
 
         socket.on('nextSong', (data) => {
             if(data === '')
-                this.letNextSongBeSlayer();
+                this.letNextSongBeSlayer("asdf");
             else
                 this.searchTrack(data);
         });
@@ -112,7 +126,7 @@ class App extends Component {
             limit: 1
         }).then((response) => {
             var item = response.tracks.items[0];
-            if (item == null) {this.letNextSongBeSlayer();}
+            if (item == null) {this.letNextSongBeSlayer(q);}
             else {
                 this.setState({
                     albumUri: item.album.uri,
@@ -124,16 +138,36 @@ class App extends Component {
         })
     }
 
-    letNextSongBeSlayer() {
-        spotifyApi.getAlbumTracks("2kwj7NbZ9YMGYYvCNrknoj").then((response) => {
-            var no = Math.floor(Math.random()*12);
-            var item = response.items[no];
+    slayerify(q) {
+        const hash = this.hashCode(q);
+        const noOfSong = Math.abs(hash)%slayerAlbumSongCounts.reduce((e1, e2) => e1 + e2);
+        return this.selectSlayerAlbum(noOfSong)
+    }
+
+    hashCode = function(s){
+        return s.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
+    };
+
+    letNextSongBeSlayer(q) {
+        const slayer = this.slayerify(q);
+        spotifyApi.getAlbumTracks(slayer.album).then((response) => {
+            var item = response.items[slayer.number];
             this.setState({
-                albumUri: "spotify:album:2kwj7NbZ9YMGYYvCNrknoj",
-                trackNo: no,
+                albumUri: "spotify:album:"+slayer.album,
+                trackNo: slayer.number,
                 nextTrackLength: item.duration_ms
             })
         });
+    }
+
+    selectSlayerAlbum(number) {
+        var noSoFar = 0;
+        for (let i = 0; i < slayerAlbumSongCounts.length; i++) {
+            noSoFar += slayerAlbumSongCounts[i];
+            if (number < noSoFar) {
+                return {album: slayerAlbums[i], number: slayerAlbumSongCounts[i] - (noSoFar - number)}
+            }
+        }
     }
 
     getHashParams() {
