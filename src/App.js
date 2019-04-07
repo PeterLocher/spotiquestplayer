@@ -104,7 +104,6 @@ class App extends Component {
         spotifyApi.getMyCurrentPlaybackState()
             .then((response) => {
                 var timeLeft = this.state.currentTrackLength - response.progress_ms;
-                console.log(timeLeft);
                 if(!flag && timeLeft < 30000) {
                     socket.emit('getNextSong');
                     clearInterval(this.interval);
