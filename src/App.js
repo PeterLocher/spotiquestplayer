@@ -3,7 +3,6 @@ import './App.css';
 import SpotifyWebApi from 'spotify-web-api-js';
 import io from 'socket.io-client';
 
-// const socket = io('192.168.43.86:8000');
 const socket = io('localhost:8000');
 
 const spotifyApi = new SpotifyWebApi();
@@ -22,6 +21,7 @@ class App extends Component {
         this.state = {
             loggedIn: token,
             nowPlaying: { name: 'Not Checked', albumArt: '' },
+            nextPlaying: { name: '', albumArt: ''},
             artistQ: "",
             trackQ: "",
             albumUri: "spotify:album:5v5BfkxWDAKTkzrXl3H0mU",
@@ -79,8 +79,8 @@ class App extends Component {
                 position: trackNo
             },
             position_ms: 0});
-        this.interval = setInterval(() => this.checkPlayNextTrack(), 500);
-        this.setState({currentTrackLength: this.state.nextTrackLength})
+        this.interval = setInterval(() => this.checkPlayNextTrack(), 2000);
+        this.setState({currentTrackLength: this.state.nextTrackLength});
         flag = false;
     }
 
@@ -91,15 +91,20 @@ class App extends Component {
                 console.log(timeLeft);
                 if(!flag && timeLeft < 30000) {
                     socket.emit('getNextSong');
+                    clearInterval(this.interval);
+                    setTimeout(() => this.sendNextSongToServer(), timeLeft - 4000);
+                    setTimeout(() => this.playNextTrack(), timeLeft - 500);
                     flag = true;
                 }
-                if(timeLeft < 800 && !(timeLeft <= 0)) {
-                    console.log("nextSong");
-                    clearInterval(this.interval);
-                    this.setState({triggerNextTrack: false});
-                    this.playNextTrack();
-                }
             });
+    }
+
+    sendNextSongToServer() {
+        socket.emit('songData', {
+            name: this.state.nextPlaying.name,
+            albumArt: this.state.nextPlaying.albumArt,
+            songLength: this.state.nextTrackLength
+        })
     }
 
     searchTrack(q){
@@ -112,7 +117,8 @@ class App extends Component {
                 this.setState({
                     albumUri: item.album.uri,
                     trackNo: item.track_number - 1,
-                    nextTrackLength: item.duration_ms
+                    nextTrackLength: item.duration_ms,
+                    nextPlaying: {name: item.name, albumArt: item.album.images[0].url}
                 })
             }
         })
