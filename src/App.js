@@ -7,6 +7,8 @@ const socket = io('localhost:8000');
 
 const spotifyApi = new SpotifyWebApi();
 
+var playSomethingWithSlayer = true;
+
 const slayerAlbums = ["2kwj7NbZ9YMGYYvCNrknoj",
     "44MTd2OAtSYY63DCcQ7P8n",
     "41dQQuob8FPy5zWGg4vLXU",
@@ -35,7 +37,7 @@ class App extends Component {
         this.state = {
             loggedIn: token,
             nowPlaying: { name: 'Not Checked', albumArt: '' },
-            nextPlaying: { name: '', albumArt: ''},
+            nextPlaying: { name: '', albumArt: '', artistName: ''},
             artistQ: "",
             trackQ: "",
             albumUri: "spotify:album:5v5BfkxWDAKTkzrXl3H0mU",
@@ -117,11 +119,17 @@ class App extends Component {
         socket.emit('songData', {
             name: this.state.nextPlaying.name,
             albumArt: this.state.nextPlaying.albumArt,
-            songLength: this.state.nextTrackLength
+            songLength: this.state.nextTrackLength,
+            artistName: this.state.nextPlaying.artistName
         })
     }
 
     searchTrack(q){
+        this.secretCodes(q);
+        if (playSomethingWithSlayer) {
+            this.letNextSongBeSlayer(q);
+            return;
+        }
         spotifyApi.searchTracks(q, {
             limit: 1
         }).then((response) => {
@@ -132,21 +140,32 @@ class App extends Component {
                     albumUri: item.album.uri,
                     trackNo: item.track_number - 1,
                     nextTrackLength: item.duration_ms,
-                    nextPlaying: {name: item.name, albumArt: item.album.images[0].url}
+                    nextPlaying: {name: item.name,
+                        albumArt: item.album.images[0].url,
+                        artistName: item.artists[0].name}
                 })
             }
         })
     }
+
+    secretCodes(q) {
+        if (q === " killslayer123") {
+            playSomethingWithSlayer = false;
+        }
+        if (q === " reviveslayer123") {
+            playSomethingWithSlayer = true;
+        }
+    }
+
+    hashCode = function(s){
+        return s.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
+    };
 
     slayerify(q) {
         const hash = this.hashCode(q);
         const noOfSong = Math.abs(hash)%slayerAlbumSongCounts.reduce((e1, e2) => e1 + e2);
         return this.selectSlayerAlbum(noOfSong)
     }
-
-    hashCode = function(s){
-        return s.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
-    };
 
     letNextSongBeSlayer(q) {
         const slayer = this.slayerify(q);
