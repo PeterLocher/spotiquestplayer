@@ -173,7 +173,10 @@ class App extends Component {
             this.setState({
                 albumUri: "spotify:album:"+slayer.album,
                 trackNo: slayer.number,
-                nextTrackLength: item.duration_ms
+                nextTrackLength: item.duration_ms,
+                nextPlaying: {name: item.name,
+                    albumArt: item.album.images[0].url,
+                    artistName: item.artists[0].name}
             })
         });
     }
