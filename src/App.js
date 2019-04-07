@@ -9,7 +9,8 @@ const spotifyApi = new SpotifyWebApi();
 
 var playSomethingWithSlayer = true;
 
-const slayerAlbums = ["2kwj7NbZ9YMGYYvCNrknoj",
+const slayerAlbums = [
+    "2kwj7NbZ9YMGYYvCNrknoj",
     "44MTd2OAtSYY63DCcQ7P8n",
     "41dQQuob8FPy5zWGg4vLXU",
     "3MuaoZgcAFuanhg04e75LK",
@@ -20,8 +21,24 @@ const slayerAlbums = ["2kwj7NbZ9YMGYYvCNrknoj",
     "2UqJjz5eMYRzbbKToD3Peh",
     "5v5BfkxWDAKTkzrXl3H0mU",
     "5g0QIKPHDAIVwiq03UeJpN",
-    "3D6BriGykla1Qi2YzeoE7X"];
+    "3D6BriGykla1Qi2YzeoE7X"
+];
 const slayerAlbumSongCounts = [12, 11, 10, 13, 11, 14, 10, 10, 10, 12, 7, 10];
+const songCount = slayerAlbumSongCounts.reduce((e1, e2) => e1 + e2);
+const slayerAlbumArts = [
+    "https://i.scdn.co/image/e21f82aad17cfa45999b693e900d7741ec268403",
+    "https://i.scdn.co/image/eeffa6bba6831531232f95c3fea6aa59751d921f",
+    "https://i.scdn.co/image/dcdb5c4270fe97408f37d75dc0f1bac52d29c02b",
+    "https://i.scdn.co/image/3e3c9188aebfb71146fd2f94fcce0f2fe9404e51",
+    "https://i.scdn.co/image/5e0f6aa7c1cc5ad1912216b54f1cce4b2034f850",
+    "https://i.scdn.co/image/1e6c31b513ba3d99ecbaf10cec36c4648de665e7",
+    "https://i.scdn.co/image/c6282f53a96c79573ad87107eb589ead54dc21e2",
+    "https://i.scdn.co/image/5ccb1ccfced173ab51ef7d00d90d12b3ff01b9d8",
+    "https://i.scdn.co/image/b9aa97e0154139172202caff53cdaf44b7541dc9",
+    "https://i.scdn.co/image/18c6fef08f5729a6837551fae473d8f52b9eeb1e",
+    "https://i.scdn.co/image/46012a6af63c7a95daac6614eee7daac439e66a0",
+    "https://i.scdn.co/image/cb1ac525b97e59526b13e7035badcb70391165c8"
+]
 
 var flag = false;
 
@@ -55,7 +72,7 @@ class App extends Component {
 
         socket.on('nextSong', (data) => {
             if(data === '')
-                this.letNextSongBeSlayer("asdf");
+                this.letNextSongBeSlayer(Math.floor(Math.random() * songCount));
             else
                 this.searchTrack(data);
         });
@@ -77,7 +94,7 @@ class App extends Component {
 
     static playRainingBlood(){
         spotifyApi.play({
-            device_id: "2a68b1cb66d56c81b1b685d16f0f2d7c094f8c9c",
+            device_id: "096f2cb4c5d91807c4b63d43402ff49df94b54c3",
             context_uri: "spotify:album:5v5BfkxWDAKTkzrXl3H0mU",
             offset: {
                 position: 9
@@ -89,7 +106,7 @@ class App extends Component {
         var albumUri = this.state.albumUri;
         var trackNo = this.state.trackNo;
         spotifyApi.play({
-            device_id: "2a68b1cb66d56c81b1b685d16f0f2d7c094f8c9c",
+            device_id: "096f2cb4c5d91807c4b63d43402ff49df94b54c3",
             context_uri: albumUri,
             offset: {
                 position: trackNo
@@ -104,9 +121,10 @@ class App extends Component {
         spotifyApi.getMyCurrentPlaybackState()
             .then((response) => {
                 var timeLeft = this.state.currentTrackLength - response.progress_ms;
+                socket.emit('songIsAt', response.progress_ms);
                 if(!flag && timeLeft < 30000) {
                     socket.emit('getNextSong');
-                    clearInterval(this.interval);
+                    //clearInterval(this.interval);
                     setTimeout(() => this.sendNextSongToServer(), timeLeft - 4000);
                     setTimeout(() => this.playNextTrack(), timeLeft - 500);
                     flag = true;
@@ -125,15 +143,18 @@ class App extends Component {
 
     searchTrack(q){
         this.secretCodes(q);
-        if (playSomethingWithSlayer) {
-            this.letNextSongBeSlayer(q);
-            return;
-        }
+        // if (playSomethingWithSlayer) {
+        //     this.letNextSongBeSlayer(q);
+        //     return;
+        // }
         spotifyApi.searchTracks(q, {
             limit: 1
         }).then((response) => {
             var item = response.tracks.items[0];
-            if (item == null) {this.letNextSongBeSlayer(q);}
+            if (item == null) {this.letNextSongBeSlayer(this.slayerify(q));}
+            else if (playSomethingWithSlayer && item.artists[0].name !== "Slayer") {
+                this.letNextSongBeSlayer(this.slayerify(item.name + item.artists[0].name));
+            }
             else {
                 this.setState({
                     albumUri: item.album.uri,
@@ -162,12 +183,12 @@ class App extends Component {
 
     slayerify(q) {
         const hash = this.hashCode(q);
-        const noOfSong = Math.abs(hash)%slayerAlbumSongCounts.reduce((e1, e2) => e1 + e2);
-        return this.selectSlayerAlbum(noOfSong)
+        const noOfSong = Math.abs(hash) % songCount;
+        return noOfSong;
     }
 
-    letNextSongBeSlayer(q) {
-        const slayer = this.slayerify(q);
+    letNextSongBeSlayer(songNo) {
+        const slayer = this.selectSlayerAlbum(songNo);
         spotifyApi.getAlbumTracks(slayer.album).then((response) => {
             var item = response.items[slayer.number];
             this.setState({
@@ -175,8 +196,8 @@ class App extends Component {
                 trackNo: slayer.number,
                 nextTrackLength: item.duration_ms,
                 nextPlaying: {name: item.name,
-                    albumArt: item.album.images[0].url,
-                    artistName: item.artists[0].name}
+                    albumArt: slayer.art,
+                    artistName: 'Slayer' }
             })
         });
     }
@@ -186,7 +207,7 @@ class App extends Component {
         for (let i = 0; i < slayerAlbumSongCounts.length; i++) {
             noSoFar += slayerAlbumSongCounts[i];
             if (number < noSoFar) {
-                return {album: slayerAlbums[i], number: slayerAlbumSongCounts[i] - (noSoFar - number)}
+                return {album: slayerAlbums[i], number: slayerAlbumSongCounts[i] - (noSoFar - number), art: slayerAlbumArts[i]}
             }
         }
     }
